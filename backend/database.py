@@ -139,6 +139,8 @@ class MovieDatabase:
         director: Optional[str] = None,
         actor: Optional[str] = None,
         same_attributes_as: Optional[dict[str, str]] = None,
+        # *args,
+        # **kwargs
     ) -> List[Tuple[str, float]]:
         def get_neighbors_by_edge_type(node, edge_type):
             return [

@@ -47,10 +47,12 @@ def get_result_and_thought_using_graph(
                 chat_input = {key: message}
 
         langchain_object.return_intermediate_steps = True
+        langchain_object.handle_parsing_errors = True
 
         with io.StringIO() as output_buffer, contextlib.redirect_stdout(output_buffer):
             try:
-                output = langchain_object(chat_input)
+                output = langchain_object(chat_input,return_only_outputs=True)
+                print(output,flush=True)
                 # output = {
                 #     'movies': [
                 #     {
@@ -83,7 +85,7 @@ def get_result_and_thought_using_graph(
             except ValueError as exc:
                 # make the error message more informative
                 logger.debug(f"Error: {str(exc)}")
-                output = langchain_object.run(chat_input)
+                output = langchain_object.run(chat_input,return_only_outputs=True)
 
             intermediate_steps = [
                 action[1]

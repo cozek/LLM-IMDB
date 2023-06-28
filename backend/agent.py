@@ -4,6 +4,11 @@ from langchain.agents.tools import Tool
 from langchain.llms import OpenAI
 from langchain.utilities.serpapi import SerpAPIWrapper
 from movie_database_tool import LLMGraphChain
+from langchain.llms import AzureOpenAI
+import os
+from dotenv import load_dotenv, find_dotenv
+_ = load_dotenv(find_dotenv())  # read local .env file
+
 
 ZERO_SHOT_FORMAT_INSTRUCTIONS = """
 Use the following format:
@@ -34,12 +39,19 @@ class MovieAgent(AgentExecutor):
 
     @classmethod
     def initialize(cls, movie_graph, *args, **kwargs):
-        llm = OpenAI(temperature=0)
+        # llm = OpenAI(temperature=0)
+
+        llm = AzureOpenAI(openai_api_type="azure",
+                  openai_api_base=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                  deployment_name =os.getenv("MODEL_DEPLOYMENT_NAME"),
+                  openai_api_version="2023-05-15",
+                  openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
+                  model='gpt-35-turbo')
 
         movie_tool = LLMGraphChain(llm=llm, graph=movie_graph, verbose=True)
 
         # Load the tool configs that are needed.
-        search = SerpAPIWrapper()
+        search = SerpAPIWrapper(serpapi_api_key=os.getenv("SERP_API"))
         tools = [
             Tool(
                 name="Movies_chain",

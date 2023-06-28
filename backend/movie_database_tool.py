@@ -1,12 +1,21 @@
-from typing import Dict, List
+import os
+from typing import Any, Dict, List, Optional
 
 from database import MovieDatabase
+from dotenv import find_dotenv, load_dotenv
+from langchain.base_language import BaseLanguageModel
+from langchain.callbacks.manager import (AsyncCallbackManagerForChainRun,
+                                         CallbackManagerForChainRun)
 from langchain.chains.base import Chain
+# from langchain.chains.api import APIChain
 from langchain.chains.llm import LLMChain
+from langchain.llms import AzureOpenAI
 from langchain.llms.base import BaseLLM
 from langchain.prompts.base import BasePromptTemplate
 from langchain.prompts.prompt import PromptTemplate
 from pydantic import BaseModel, Extra
+
+_ = load_dotenv(find_dotenv())  # read local .env file
 
 _PROMPT_TEMPLATE = """
 You are helping to create a query for searching a graph database that finds similar movies based on specified parameters.
@@ -60,7 +69,7 @@ class LLMGraphChain(Chain, BaseModel):
     """Prompt to use to translate to python if neccessary."""
     input_key: str = "question"  #: :meta private:
     output_key: str = "answer"  #: :meta private:
-    graph: MovieDatabase
+    graph: MovieDatabase = MovieDatabase()
 
     class Config:
         """Configuration for this pydantic object."""
@@ -84,25 +93,28 @@ class LLMGraphChain(Chain, BaseModel):
         """
         return [self.output_key]
 
-    def _process_llm_result(self, t: str) -> Dict[str, str]:
+    def _process_llm_result(self, t: str, run_manager: Optional[CallbackManagerForChainRun] = None) -> Dict[str, str]:
         import yaml
 
-        self.callback_manager.on_text("\nQuery:\n", verbose=self.verbose)
-        self.callback_manager.on_text(t, color="green", verbose=self.verbose)
+        run_manager.on_text("\nQuery:\n", verbose=self.verbose)
+        run_manager.on_text(t, color="green", verbose=self.verbose)
         # Convert t to a dictionary
-        t = yaml.safe_load(t)
+        t = yaml.unsafe_load(t)
+        if "Question" in t:
+            del t["Question"]
         output = self.graph.query_movies(**t)
-        self.callback_manager.on_text("\nAnswer: ", verbose=self.verbose)
-        self.callback_manager.on_text(output, color="yellow", verbose=self.verbose)
+        run_manager.on_text("\nAnswer: ", verbose=self.verbose)
+        run_manager.on_text(output, color="yellow", verbose=self.verbose)
         return {self.output_key: "\n".join([f"{i[0]}: {i[1]}" for i in output])}
 
-    def _call(self, inputs: Dict[str, str]) -> Dict[str, str]:
+    def _call(self, inputs: Dict[str, str],
+              run_manager: Optional[CallbackManagerForChainRun] = None) -> Dict[str, str]:
         llm_executor = LLMChain(
-            prompt=self.prompt, llm=self.llm, callback_manager=self.callback_manager
+            prompt=self.prompt, llm=self.llm, callbacks=run_manager.get_child() if run_manager else None
         )
-        self.callback_manager.on_text(inputs[self.input_key], verbose=self.verbose)
+        run_manager.on_text(inputs[self.input_key], verbose=self.verbose)
         t = llm_executor.predict(question=inputs[self.input_key], stop=["Output:"])
-        return self._process_llm_result(t)
+        return self._process_llm_result(t,run_manager)
 
     @property
     def _chain_type(self) -> str:
@@ -112,7 +124,12 @@ class LLMGraphChain(Chain, BaseModel):
 if __name__ == "__main__":
     from langchain.llms import OpenAI
 
-    llm = OpenAI(temperature=0.3)
+    llm = AzureOpenAI(openai_api_type="azure",
+                  openai_api_base=os.getenv("AZURE_OPENAI_ENDPOINT"),
+                  deployment_name =os.getenv("MODEL_DEPLOYMENT_NAME"),
+                  openai_api_version="2023-05-15",
+                  openai_api_key=os.getenv("AZURE_OPENAI_KEY"),
+                  model='gpt-35-turbo')
 
     chain = LLMGraphChain(llm=llm, verbose=True)
 

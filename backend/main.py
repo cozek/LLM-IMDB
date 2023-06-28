@@ -1,32 +1,33 @@
-from endpoints import router as endpoints_router
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+# from endpoints import router as endpoints_router
+# from fastapi import FastAPI
+# from fastapi.middleware.cors import CORSMiddleware
 
 
-def create_app():
-    """Create the FastAPI app and include the router."""
-    app = FastAPI()
+# def create_app():
+#     """Create the FastAPI app and include the router."""
+#     app = FastAPI()
 
-    origins = [
-        "*",
-    ]
+#     origins = [
+#         "*",
+#     ]
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+#     app.add_middleware(
+#         CORSMiddleware,
+#         allow_origins=origins,
+#         allow_credentials=True,
+#         allow_methods=["*"],
+#         allow_headers=["*"],
+#     )
 
-    app.include_router(endpoints_router)
-    return app
+#     app.include_router(endpoints_router)
+#     return app
 
 
-app = create_app()
+# app = create_app()
 
 
 if __name__ == "__main__":
     import uvicorn
+    from app import backend
 
-    uvicorn.run(app, host="127.0.0.1", port=7860)
+    uvicorn.run("app:backend", host="127.0.0.1", port=7860,reload=True,log_level='debug', access_log=True)
